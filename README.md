@@ -282,29 +282,18 @@ Once the server is running, access:
 | GET | /api/progress/dashboard | Dashboard statistics |
 | POST | /api/progress | Record progress data |
 
- 🎨 Screenshots
-
- Dashboard
-![Dashboard](docs/screenshots/dashboard.png)
-
- Client Management
-![Clients](docs/screenshots/clients.png)
-
- Interactive Activity
-![Activity](docs/screenshots/activity.png)
-
- Session SOAP Notes
-![Session](docs/screenshots/session.png)
-
  📖 Technical Documentation
 
-Full technical documentation including:
+Full technical documentation, including:
 - System flowcharts
 - Database schema diagrams
 - API specifications
 - Deployment guides
 
 See [docs/Technical_Documentation.docx](docs/Technical_Documentation.docx)
+
+ 📹 Video Demo link of SpeechWorks Web App
+ - https://youtu.be/tzFzpDWVggQ
 
  🔐 Security Features
 
@@ -316,7 +305,7 @@ See [docs/Technical_Documentation.docx](docs/Technical_Documentation.docx)
 
  📄 License
 
-This project is created for educational purposes as part of INEW 2434 Advanced Web Programming course at Houston Community College.
+This project is created for educational purposes as part of INEW 2434 Advanced Web Programming course at Houston City College.
 
  👩‍💻 Author
 
