@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="speechWorksApp">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpeechWorks - Speech Therapy Treatment Tool</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Chart.js for Progress Charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body ng-controller="MainController">
+    
+    <!-- Navigation -->
+    <nav class="navbar" ng-show="isAuthenticated">
+        <div class="nav-brand">
+            <i class="fas fa-comments"></i>
+            <span>SpeechWorks</span>
+        </div>
+        <div class="nav-links">
+            <a href="#" ng-click="setView('dashboard')" ng-class="{active: currentView === 'dashboard'}">
+                <i class="fas fa-home"></i> Dashboard
+            </a>
+            <a href="#" ng-click="setView('clients')" ng-class="{active: currentView === 'clients'}">
+                <i class="fas fa-users"></i> Clients
+            </a>
+            <a href="#" ng-click="setView('sessions')" ng-class="{active: currentView === 'sessions'}">
+                <i class="fas fa-calendar-alt"></i> Sessions
+            </a>
+            <a href="#" ng-click="setView('activities')" ng-class="{active: currentView === 'activities'}">
+                <i class="fas fa-puzzle-piece"></i> Activities
+            </a>
+            <a href="#" ng-click="setView('resources')" ng-class="{active: currentView === 'resources'}">
+                <i class="fas fa-folder-open"></i> Resources
+            </a>
+        </div>
+        <div class="nav-user">
+            <span class="user-name">{{ currentUser.full_name }}</span>
+            <button class="btn-logout" ng-click="logout()">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        
+        <!-- Login View -->
+        <div ng-if="!isAuthenticated" class="login-container">
+            <div class="login-card">
+                <div class="login-header">
+                    <i class="fas fa-comments logo-icon"></i>
+                    <h1>SpeechWorks</h1>
+                    <p>Speech Therapy Treatment Tool</p>
+                </div>
+                
+                <!-- Auth Toggle Switch -->
+                <div class="auth-toggle">
+                    <button type="button" 
+                            class="auth-toggle-btn" 
+                            ng-class="{'active': !showRegister}" 
+                            ng-click="switchToLogin()">
+                        <i class="fas fa-sign-in-alt"></i> Sign In
+                    </button>
+                    <button type="button" 
+                            class="auth-toggle-btn" 
+                            ng-class="{'active': showRegister}" 
+                            ng-click="switchToRegister()">
+                        <i class="fas fa-user-plus"></i> Register
+                    </button>
+                </div>
+                
+                <!-- Login Form -->
+                <form ng-if="!showRegister" ng-submit="login()" class="login-form">
+                    <div class="form-group">
+                        <label for="email"><i class="fas fa-envelope"></i> Email</label>
+                        <input type="email" id="email" ng-model="loginData.email" placeholder="Enter your email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password"><i class="fas fa-lock"></i> Password</label>
+                        <input type="password" id="password" ng-model="loginData.password" placeholder="Enter your password" required>
+                    </div>
+                    <div class="error-message" ng-show="loginError">{{ loginError }}</div>
+                    <div class="success-message" ng-show="registrationSuccess">
+                        <i class="fas fa-check-circle"></i> {{ registrationSuccess }}
+                    </div>
+                    <button type="submit" class="btn-primary btn-full" ng-disabled="isLoading">
+                        <span ng-show="!isLoading"><i class="fas fa-sign-in-alt"></i> Sign In</span>
+                        <span ng-show="isLoading"><i class="fas fa-spinner fa-spin"></i> Signing In...</span>
+                    </button>
+                </form>
+                
+                <!-- Registration Form -->
+                <form ng-if="showRegister" ng-submit="register()" class="login-form">
+                    <div class="form-group">
+                        <label><i class="fas fa-user"></i> Full Name</label>
+                        <input type="text" ng-model="registerData.full_name" placeholder="Your full name" required>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-envelope"></i> Email</label>
+                        <input type="email" ng-model="registerData.email" placeholder="Email address" required>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-id-card"></i> License Number (Optional)</label>
+                        <input type="text" ng-model="registerData.license_number" placeholder="SLP License Number">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> Password (Min 8 characters)</label>
+                        <input type="password" ng-model="registerData.password" placeholder="Create password" required>
+                    </div>
+                    <div class="error-message" ng-show="registerError">{{ registerError }}</div>
+                    <button type="submit" class="btn-primary btn-full" ng-disabled="isLoading">
+                        <span ng-show="!isLoading"><i class="fas fa-user-plus"></i> Create Account</span>
+                        <span ng-show="isLoading"><i class="fas fa-spinner fa-spin"></i> Creating Account...</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Dashboard View -->
+        <div ng-if="isAuthenticated && currentView === 'dashboard'" ng-controller="DashboardController">
+            <div class="page-header">
+                <h1><i class="fas fa-home"></i> Dashboard</h1>
+                <p>Welcome back, {{ currentUser.full_name }}!</p>
+            </div>
+            
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+                    <div class="stat-info">
+                        <h3>{{ stats.total_clients || 0 }}</h3>
+                        <p>Total Clients</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green"><i class="fas fa-calendar-check"></i></div>
+                    <div class="stat-info">
+                        <h3>{{ stats.active_sessions_today || 0 }}</h3>
+                        <p>Sessions Today</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon purple"><i class="fas fa-calendar-week"></i></div>
+                    <div class="stat-info">
+                        <h3>{{ stats.sessions_this_week || 0 }}</h3>
+                        <p>Sessions This Week</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon orange"><i class="fas fa-chart-line"></i></div>
+                    <div class="stat-info">
+                        <h3>{{ stats.avg_accuracy_this_week || 0 }}%</h3>
+                        <p>Avg. Accuracy</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Today's Sessions -->
+            <div class="dashboard-section">
+                <h2><i class="fas fa-clock"></i> Today's Sessions</h2>
+                <div class="session-list" ng-if="todaySessions.length > 0">
+                    <div class="session-item" ng-repeat="session in todaySessions" ng-class="{'session-item-cancelled': session.status === 'cancelled'}">
+                        <div class="session-time">
+                            {{ session.session_date | date:'shortTime' }}
+                        </div>
+                        <div class="session-info">
+                            <strong>{{ getClientName(session.client_id) }}</strong>
+                            <span class="session-duration">{{ session.duration_minutes }} min</span>
+                        </div>
+                        <div class="session-status" ng-class="session.status">
+                            {{ session.status.replace('_', ' ') | uppercase }}
+                        </div>
+                    </div>
+                </div>
+                <div class="empty-state" ng-if="todaySessions.length === 0">
+                    <i class="fas fa-calendar-times"></i>
+                    <p>No sessions scheduled for today</p>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <h2><i class="fas fa-bolt"></i> Quick Actions</h2>
+                <div class="action-buttons">
+                    <button class="action-btn" ng-click="setView('clients'); openNewClientModal()">
+                        <i class="fas fa-user-plus"></i>
+                        <span>Add Client</span>
+                    </button>
+                    <button class="action-btn" ng-click="setView('sessions'); openNewSessionModal()">
+                        <i class="fas fa-calendar-plus"></i>
+                        <span>Schedule Session</span>
+                    </button>
+                    <button class="action-btn" ng-click="setView('activities')">
+                        <i class="fas fa-play-circle"></i>
+                        <span>Start Activity</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Clients View -->
+        <div ng-if="isAuthenticated && currentView === 'clients'" ng-controller="ClientsController">
+            <div class="page-header">
+                <h1><i class="fas fa-users"></i> Clients</h1>
+                <button class="btn-primary" ng-click="openClientModal()">
+                    <i class="fas fa-plus"></i> Add Client
+                </button>
+            </div>
+            
+            <!-- Search & Filter -->
+            <div class="filter-bar">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" ng-model="searchTerm" placeholder="Search clients..." ng-change="searchClients()">
+                </div>
+                <select ng-model="filterActive" ng-change="filterClients()">
+                    <option value="">All Status</option>
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                </select>
+            </div>
+            
+            <p class="helper-hint" ng-show="showClientHint"><i class="fas fa-info-circle"></i> Click on a client card to view their details and progress</p>
+            
+            <!-- Clients Grid -->
+            <div class="clients-grid">
+                <div class="client-card" ng-repeat="client in clients" ng-click="viewClient(client)">
+                    <div class="client-avatar">
+                        {{ client.first_name.charAt(0) }}{{ client.last_name.charAt(0) }}
+                    </div>
+                    <div class="client-info">
+                        <h3>{{ client.first_name }} {{ client.last_name }}</h3>
+                        <p class="client-dob"><i class="fas fa-birthday-cake"></i> {{ client.date_of_birth | date:'mediumDate' }}</p>
+                        <p class="client-diagnosis" ng-if="client.diagnosis">{{ client.diagnosis | limitTo:50 }}...</p>
+                    </div>
+                    <div class="client-status" ng-class="{active: client.is_active, inactive: !client.is_active}">
+                        {{ client.is_active ? 'Active' : 'Inactive' }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="empty-state" ng-if="clients.length === 0">
+                <i class="fas fa-user-slash"></i>
+                <p>No clients found</p>
+                <button class="btn-primary" ng-click="openClientModal()">Add Your First Client</button>
+            </div>
+            
+            <!-- Client Modal -->
+            <div class="modal-overlay" ng-show="showClientModal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>{{ editingClient ? 'Edit Client' : 'Add New Client' }}</h2>
+                        <button class="modal-close" ng-click="closeClientModal()">&times;</button>
+                    </div>
+                    <form>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>First Name *</label>
+                                <input type="text" ng-model="clientForm.first_name" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Last Name *</label>
+                                <input type="text" ng-model="clientForm.last_name" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Date of Birth {{ editingClient ? '' : '*' }}</label>
+                                <input type="date" ng-model="clientForm.date_of_birth" ng-required="!editingClient">
+                                <p class="form-help" ng-if="editingClient && !clientForm.date_of_birth">Leave empty to keep current date</p>
+                            </div>
+                            <div class="form-group">
+                                <label>Status</label>
+                                <select ng-model="clientForm.is_active">
+                                    <option ng-value="true">Active</option>
+                                    <option ng-value="false">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Diagnosis</label>
+                            <textarea ng-model="clientForm.diagnosis" rows="3" placeholder="Speech/language diagnosis..."></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Guardian Name</label>
+                                <input type="text" ng-model="clientForm.guardian_name" placeholder="Parent/Guardian name">
+                            </div>
+                            <div class="form-group">
+                                <label>Contact Phone</label>
+                                <input type="tel" ng-model="clientForm.contact_phone" placeholder="Phone number">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Contact Email</label>
+                            <input type="email" ng-model="clientForm.contact_email" placeholder="Email address">
+                        </div>
+                        <div class="form-group">
+                            <label>Notes</label>
+                            <textarea ng-model="clientForm.notes" rows="3" placeholder="Additional notes..."></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" ng-click="closeClientModal()">Cancel</button>
+                            <button type="button" class="btn-primary btn-add-goal" ng-click="openGoalModal()" ng-show="editingClient && editingClient.id">
+                                <i class="fas fa-plus"></i> Add Goal
+                            </button>
+                            <button type="button" class="btn-primary" ng-click="saveClient()">{{ editingClient ? 'Update' : 'Save' }}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Goal Modal (shared for edit and detail views) -->
+            <div class="modal-overlay goal-modal-overlay" ng-show="showGoalModal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-bullseye"></i> {{ editingGoal ? 'Edit Goal' : 'Add Treatment Goal' }}</h2>
+                        <button class="modal-close" ng-click="closeGoalModal()">&times;</button>
+                    </div>
+                    <form ng-submit="saveGoalForm()" name="goalFormValidation">
+                        <div class="form-group" ng-if="!editingGoal">
+                            <label>Category *</label>
+                            <select ng-model="goalForm.category" required>
+                                <option ng-repeat="cat in goalCategories" value="{{ cat.value }}">{{ cat.label }}</option>
+                            </select>
+                        </div>
+                        <div class="form-group" ng-if="editingGoal">
+                            <label>Category</label>
+                            <div class="goal-category-display" ng-class="goalForm.category">{{ goalForm.category }}</div>
+                        </div>
+                        <div class="form-group">
+                            <label>Goal Description *</label>
+                            <textarea ng-model="goalForm.description" rows="3" placeholder="Describe the treatment goal..." required></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Target Accuracy (%)</label>
+                                <input type="number" ng-model="goalForm.target_accuracy" min="0" max="100" placeholder="80">
+                            </div>
+                            <div class="form-group" ng-if="editingGoal">
+                                <label>Current Accuracy (%) <span ng-if="goalForm.status === 'in_progress'" class="required-asterisk">*</span></label>
+                                <input type="number" ng-model="goalForm.current_accuracy" min="0" ng-attr-max="{{ goalForm.target_accuracy }}" placeholder="0" 
+                                       ng-change="onCurrentAccuracyChange()"
+                                       ng-disabled="goalForm.status === 'mastered' || goalForm.status === 'not_started' || goalForm.status === 'discontinued'"
+                                       ng-class="{'input-disabled': goalForm.status === 'discontinued', 'input-error': hasAccuracyError()}">
+                                <!-- In Progress hints -->
+                                <p class="form-hint" ng-if="goalForm.status === 'in_progress' && !hasAccuracyError()"><i class="fas fa-info-circle"></i> Required when status is "In Progress"</p>
+                                <p class="form-hint form-hint-error" ng-if="goalForm.status === 'in_progress' && goalForm.current_accuracy >= goalForm.target_accuracy && goalForm.current_accuracy !== null && goalForm.current_accuracy !== undefined && goalForm.current_accuracy !== ''">
+                                    <i class="fas fa-exclamation-circle"></i> To set current accuracy equal to target, change status to "Mastered"
+                                </p>
+                                <p class="form-hint form-hint-error" ng-if="goalForm.current_accuracy > goalForm.target_accuracy">
+                                    <i class="fas fa-exclamation-circle"></i> Current accuracy cannot exceed target accuracy
+                                </p>
+                                <p class="form-hint form-hint-warning" ng-if="goalForm.status === 'in_progress' && statusChangedToInProgress && !accuracyModified">
+                                    <i class="fas fa-exclamation-triangle"></i> Please enter new current accuracy value
+                                </p>
+                                <!-- Other status hints -->
+                                <p class="form-hint" ng-if="goalForm.status === 'mastered'"><i class="fas fa-check-circle"></i> Auto-set to target accuracy</p>
+                                <p class="form-hint" ng-if="goalForm.status === 'not_started'"><i class="fas fa-undo"></i> Reset to 0%</p>
+                                <p class="form-hint" ng-if="goalForm.status === 'discontinued'"><i class="fas fa-ban"></i> Goal discontinued - no progress tracking</p>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Target Date</label>
+                                <input type="date" ng-model="goalForm.target_date">
+                            </div>
+                            <div class="form-group" ng-if="editingGoal">
+                                <label>Status</label>
+                                <select ng-model="goalForm.status" ng-change="onGoalStatusChange()">
+                                    <option ng-repeat="status in goalStatuses" value="{{ status.value }}">{{ status.label }}</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" ng-click="closeGoalModal()">Cancel</button>
+                            <button type="submit" class="btn-primary" 
+                                    ng-disabled="!canSaveGoal()">
+                                <i class="fas fa-save"></i> {{ editingGoal ? 'Update Goal' : 'Save Goal' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Client Detail Modal -->
+            <div class="modal-overlay" ng-show="showClientDetail">
+                <div class="modal-content modal-large">
+                    <div class="modal-header">
+                        <h2>{{ selectedClient.first_name }} {{ selectedClient.last_name }}</h2>
+                        <button class="modal-close" ng-click="closeClientDetail()">&times;</button>
+                    </div>
+                    <div class="client-detail-tabs">
+                        <button ng-class="{active: clientTab === 'info'}" ng-click="clientTab = 'info'">Info</button>
+                        <button ng-class="{active: clientTab === 'goals'}" ng-click="clientTab = 'goals'">Goals</button>
+                        <button ng-class="{active: clientTab === 'progress'}" ng-click="clientTab = 'progress'">Progress</button>
+                    </div>
+                    
+                    <!-- Info Tab -->
+                    <div ng-show="clientTab === 'info'" class="tab-content">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <label>Date of Birth</label>
+                                <p>{{ selectedClient.date_of_birth | date:'mediumDate' }}</p>
+                            </div>
+                            <div class="info-item">
+                                <label>Diagnosis</label>
+                                <p>{{ selectedClient.diagnosis || 'Not specified' }}</p>
+                            </div>
+                            <div class="info-item">
+                                <label>Guardian</label>
+                                <p>{{ selectedClient.guardian_name || 'Not specified' }}</p>
+                            </div>
+                            <div class="info-item">
+                                <label>Contact</label>
+                                <p>{{ selectedClient.contact_phone || 'N/A' }} | {{ selectedClient.contact_email || 'N/A' }}</p>
+                            </div>
+                        </div>
+                        <div class="info-notes" ng-if="selectedClient.notes">
+                            <label>Notes</label>
+                            <p>{{ selectedClient.notes }}</p>
+                        </div>
+                        <div class="detail-actions">
+                            <button class="btn-secondary" ng-click="editClient(selectedClient)"><i class="fas fa-edit"></i> Edit</button>
+                            <button class="btn-danger" ng-click="deleteClient(selectedClient)"><i class="fas fa-trash"></i> Delete</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Goals Tab -->
+                    <div ng-show="clientTab === 'goals'" class="tab-content">
+                        <button class="btn-primary btn-sm" ng-click="openGoalModal()"><i class="fas fa-plus"></i> Add Goal</button>
+                        <div class="goals-list">
+                            <div class="goal-card" ng-repeat="goal in selectedClient.goals" ng-class="{'goal-discontinued': goal.status === 'discontinued'}">
+                                <div class="goal-card-header">
+                                    <div class="goal-badges">
+                                        <span class="goal-category-badge" ng-class="goal.category">{{ goal.category }}</span>
+                                        <span class="goal-status-badge" ng-class="goal.status">{{ goal.status.replace('_', ' ') }}</span>
+                                    </div>
+                                    <div class="goal-card-actions">
+                                        <button class="btn-icon" ng-click="editGoal(goal)" title="Edit Goal">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn-icon btn-icon-delete" ng-click="deleteGoal(goal)" title="Delete Goal">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="goal-card-body">
+                                    <p class="goal-description">{{ goal.description }}</p>
+                                    <div class="goal-progress-section" ng-class="{'progress-disabled': goal.status === 'discontinued'}">
+                                        <div class="goal-progress-labels">
+                                            <span class="progress-label">Current: <strong>{{ goal.current_accuracy }}%</strong></span>
+                                            <span class="progress-label">Target: <strong>{{ goal.target_accuracy }}%</strong></span>
+                                        </div>
+                                        <div class="goal-progress-bar">
+                                            <div class="progress-track" ng-class="{'track-disabled': goal.status === 'discontinued'}">
+                                                <div class="progress-fill" ng-style="{'width': (goal.current_accuracy / goal.target_accuracy * 100) + '%'}" ng-class="{'mastered': goal.status === 'mastered', 'fill-disabled': goal.status === 'discontinued'}"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="empty-state" ng-if="!selectedClient.goals || selectedClient.goals.length === 0">
+                            <i class="fas fa-bullseye"></i>
+                            <p>No goals set yet</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Progress Tab -->
+                    <div ng-show="clientTab === 'progress'" class="tab-content">
+                        <div class="progress-stats-grid">
+                            <div class="progress-stat-card">
+                                <div class="progress-stat-icon blue">
+                                    <i class="fas fa-calendar-check"></i>
+                                </div>
+                                <div class="progress-stat-info">
+                                    <h3>{{ clientProgress.completedSessions || 0 }}</h3>
+                                    <p>Completed Sessions</p>
+                                </div>
+                            </div>
+                            <div class="progress-stat-card">
+                                <div class="progress-stat-icon green">
+                                    <i class="fas fa-trophy"></i>
+                                </div>
+                                <div class="progress-stat-info">
+                                    <h3>{{ clientProgress.masteredGoals || 0 }}</h3>
+                                    <p>Goals Mastered</p>
+                                </div>
+                            </div>
+                            <div class="progress-stat-card">
+                                <div class="progress-stat-icon orange">
+                                    <i class="fas fa-bullseye"></i>
+                                </div>
+                                <div class="progress-stat-info">
+                                    <h3>{{ clientProgress.totalGoals || 0 }}</h3>
+                                    <p>Total Goals</p>
+                                </div>
+                            </div>
+                            <div class="progress-stat-card">
+                                <div class="progress-stat-icon purple">
+                                    <i class="fas fa-percentage"></i>
+                                </div>
+                                <div class="progress-stat-info">
+                                    <h3>{{ clientProgress.avgAccuracy || 0 }}%</h3>
+                                    <p>Avg. Goal Accuracy</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Activities Progress Section -->
+                        <div class="progress-activities-section" ng-if="clientActivities && clientActivities.length > 0">
+                            <h4><i class="fas fa-puzzle-piece"></i> Activity History</h4>
+                            <div class="activities-progress-list">
+                                <div class="activity-progress-card" ng-repeat="activity in clientActivities | orderBy:'-record_date'">
+                                    <div class="activity-progress-header">
+                                        <span class="activity-category-badge" ng-class="activity.category">{{ activity.category }}</span>
+                                        <span class="activity-date">{{ activity.record_date }}</span>
+                                    </div>
+                                    <p class="activity-notes" ng-if="activity.notes">{{ activity.notes }}</p>
+                                    <div class="activity-progress-metrics">
+                                        <div class="activity-metric">
+                                            <span class="metric-label">Trials</span>
+                                            <span class="metric-value">{{ activity.trials_total || 0 }}</span>
+                                        </div>
+                                        <div class="activity-metric accuracy-metric">
+                                            <span class="metric-label">Accuracy</span>
+                                            <span class="metric-value" ng-class="{'text-success': activity.accuracy_percentage >= 80, 'text-warning': activity.accuracy_percentage >= 50 && activity.accuracy_percentage < 80, 'text-danger': activity.accuracy_percentage < 50}">
+                                                {{ activity.accuracy_percentage | number:0 }}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="activity-progress-bar-container">
+                                        <div class="progress-track">
+                                            <div class="progress-fill" ng-style="{'width': activity.accuracy_percentage + '%'}" ng-class="{'mastered': activity.accuracy_percentage >= 80}"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="empty-state" ng-if="(!clientActivities || clientActivities.length === 0) && (!selectedClient.goals || selectedClient.goals.length === 0)">
+                            <i class="fas fa-chart-line"></i>
+                            <p>No activity or goal data yet.</p>
+                        </div>
+                        
+                        <!-- Goals Progress List -->
+                        <div class="progress-goals-section" ng-if="selectedClient.goals.length > 0">
+                            <h4><i class="fas fa-chart-line"></i> Goal Progress Overview</h4>
+                            <div class="progress-goal-card" ng-repeat="goal in selectedClient.goals" ng-class="{'goal-discontinued': goal.status === 'discontinued'}">
+                                <div class="progress-goal-card-header">
+                                    <span class="goal-category-badge" ng-class="goal.category">{{ goal.category }}</span>
+                                    <span class="goal-status-badge" ng-class="goal.status">{{ goal.status.replace('_', ' ') }}</span>
+                                </div>
+                                <p class="progress-goal-desc">{{ goal.description }}</p>
+                                <div class="progress-goal-metrics" ng-class="{'metrics-disabled': goal.status === 'discontinued'}">
+                                    <div class="progress-metric">
+                                        <span class="metric-label">Current</span>
+                                        <span class="metric-value">{{ goal.current_accuracy }}%</span>
+                                    </div>
+                                    <div class="progress-metric">
+                                        <span class="metric-label">Target</span>
+                                        <span class="metric-value">{{ goal.target_accuracy }}%</span>
+                                    </div>
+                                    <div class="progress-metric">
+                                        <span class="metric-label">Progress</span>
+                                        <span class="metric-value" ng-class="{'text-success': goal.current_accuracy >= goal.target_accuracy && goal.status !== 'discontinued'}">
+                                            {{ goal.status === 'discontinued' ? 'N/A' : (goal.target_accuracy > 0 ? (goal.current_accuracy / goal.target_accuracy * 100 | number:0) : 0) + '%' }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="progress-goal-bar-container">
+                                    <div class="progress-track" ng-class="{'track-disabled': goal.status === 'discontinued'}">
+                                        <div class="progress-fill" ng-style="{'width': (goal.current_accuracy / goal.target_accuracy * 100) + '%'}" ng-class="{'mastered': goal.status === 'mastered', 'fill-disabled': goal.status === 'discontinued'}"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="empty-state" ng-if="selectedClient.goals.length === 0 && clientActivities && clientActivities.length > 0">
+                            <i class="fas fa-bullseye"></i>
+                            <p>No goals set yet. Add goals to track progress.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sessions View -->
+        <div ng-if="isAuthenticated && currentView === 'sessions'" ng-controller="SessionsController">
+            <div class="page-header">
+                <h1><i class="fas fa-calendar-alt"></i> Sessions</h1>
+                <button class="btn-primary" ng-click="openSessionModal()">
+                    <i class="fas fa-plus"></i> Schedule Session
+                </button>
+            </div>
+            
+            <!-- Session Filters -->
+            <div class="filter-bar">
+                <select ng-model="filterClient" ng-change="filterSessions()">
+                    <option value="">All Clients</option>
+                    <option ng-repeat="client in clients" value="{{ client.id }}">{{ client.first_name }} {{ client.last_name }}</option>
+                </select>
+                <select ng-model="filterStatus" ng-change="filterSessions()">
+                    <option value="">All Status</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+                <input type="date" ng-model="filterDate" ng-change="filterSessions()">
+            </div>
+            
+            <!-- Sessions List -->
+            <div class="sessions-list">
+                <div class="session-card" ng-repeat="session in sessions" ng-click="viewSession(session)" ng-class="{'session-cancelled': session.status === 'cancelled'}">
+                    <div class="session-date-badge">
+                        <span class="day">{{ session.session_date | date:'d' }}</span>
+                        <span class="month">{{ session.session_date | date:'MMM' }}</span>
+                    </div>
+                    <div class="session-details">
+                        <h3>{{ getClientName(session.client_id) }}</h3>
+                        <p><i class="fas fa-clock"></i> {{ session.session_date | date:'shortTime' }} - {{ session.duration_minutes }} min</p>
+                        <!-- Assigned Activities Display -->
+                        <div class="session-card-activities" ng-if="session.assignedActivities && session.assignedActivities.length > 0" ng-click="$event.stopPropagation()">
+                            <span class="activity-tag" 
+                                  ng-repeat="sa in session.assignedActivities | limitTo:3" 
+                                  ng-class="[sa.activity.category, {'clickable': isInProgress(session) && !sa.trials_attempted, 'completed': sa.trials_attempted > 0}]"
+                                  ng-click="openActivityFromSession(sa.activity, session, sa); $event.stopPropagation();"
+                                  title="{{ sa.trials_attempted > 0 ? 'Completed - ' + (sa.accuracy_percentage || 0).toFixed(0) + '% accuracy' : (isInProgress(session) ? 'Click to start activity' : 'Session must be In Progress to start') }}">
+                                {{ sa.activity.name | limitTo:15 }}{{ sa.activity.name.length > 15 ? '...' : '' }}
+                                <span class="activity-completed-badge" ng-if="sa.trials_attempted > 0">✓ {{ (sa.accuracy_percentage || 0).toFixed(0) }}%</span>
+                            </span>
+                            <span class="activity-tag more" ng-if="session.assignedActivities.length > 3">
+                                +{{ session.assignedActivities.length - 3 }} more
+                            </span>
+                        </div>
+                        <!-- Click hint for in-progress sessions -->
+                        <p class="activity-click-hint" ng-if="isInProgress(session) && session.assignedActivities && session.assignedActivities.length > 0 && hasIncompleteActivities(session)">
+                            <i class="fas fa-hand-pointer"></i> Click an activity to start
+                        </p>
+                    </div>
+                    <span class="session-status-display" ng-class="session.status" ng-click="$event.stopPropagation()">
+                        {{ session.status.replace('_', ' ') }}
+                    </span>
+                    <div class="session-actions" ng-click="$event.stopPropagation()">
+                        <button class="btn-sm btn-notes" ng-click="viewSession(session)" title="Session Notes & Activities">
+                            <i class="fas fa-notes-medical"></i>
+                            <span class="btn-label">Notes & Activities</span>
+                        </button>
+                        <button class="btn-sm btn-secondary" ng-click="editSession(session)" title="Edit Session">
+                            <i class="fas fa-edit"></i>
+                            <span class="btn-label">Edit Session</span>
+                        </button>
+                        <button class="btn-sm btn-danger" ng-click="deleteSession(session)" title="Cancel Session">
+                            <i class="fas fa-trash"></i>
+                            <span class="btn-label">Cancel</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Session Modal -->
+            <div class="modal-overlay" ng-show="showSessionModal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>{{ editingSession ? 'Edit Session' : 'Schedule New Session' }}</h2>
+                        <button class="modal-close" ng-click="closeSessionModal()">&times;</button>
+                    </div>
+                    <form>
+                        <div class="form-group">
+                            <label>Client *</label>
+                            <select ng-model="sessionForm.client_id" required ng-disabled="editingSession">
+                                <option value="">Select a client</option>
+                                <option ng-repeat="client in clients" value="{{ client.id }}">{{ client.first_name }} {{ client.last_name }}</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Date & Time *</label>
+                                <input type="datetime-local" ng-model="sessionForm.session_date" ng-required="!editingSession">
+                            </div>
+                            <div class="form-group">
+                                <label>Duration (minutes)</label>
+                                <select ng-model="sessionForm.duration_minutes">
+                                    <option value="15">15 min</option>
+                                    <option value="30">30 min</option>
+                                    <option value="45">45 min</option>
+                                    <option value="60">60 min</option>
+                                    <option value="90">90 min</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group" ng-show="editingSession">
+                            <label>Status</label>
+                            <select ng-model="sessionForm.status" ng-options="status.value as status.label for status in sessionStatuses">
+                            </select>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" ng-click="closeSessionModal()">Cancel</button>
+                            <button type="button" class="btn-primary" ng-click="saveSession()">{{ editingSession ? 'Update' : 'Schedule' }}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Session Detail/SOAP Modal -->
+            <div class="modal-overlay" ng-show="showSessionDetail">
+                <div class="modal-content modal-large">
+                    <div class="modal-header">
+                        <h2>Session: {{ getClientName(selectedSession.client_id) }}</h2>
+                        <button class="modal-close" ng-click="closeSessionDetail()">&times;</button>
+                    </div>
+                    <div class="session-detail-content">
+                        <div class="session-meta">
+                            <span><i class="fas fa-calendar"></i> {{ selectedSession.session_date | date:'medium' }}</span>
+                            <span><i class="fas fa-clock"></i> {{ selectedSession.duration_minutes }} min</span>
+                            <span class="status-badge" ng-class="selectedSession.status">{{ selectedSession.status }}</span>
+                        </div>
+                        
+                        <!-- SOAP Notes -->
+                        <div class="soap-notes">
+                            <h3><i class="fas fa-notes-medical"></i> SOAP Notes (Subjective, Objective, Assessment, Plan)</h3>
+                            
+                            <div class="soap-section">
+                                <label><strong>S</strong> - Subjective</label>
+                                <p class="soap-description">Client's report of symptoms, feelings, concerns, and goals for this session</p>
+                                <textarea ng-model="selectedSession.soap_subjective" placeholder="What the client or caregiver reports about progress, concerns, or observations since last session..."></textarea>
+                            </div>
+                            
+                            <div class="soap-section">
+                                <label><strong>O</strong> - Objective</label>
+                                <p class="soap-description">Measurable observations, test results, and accuracy data from this session</p>
+                                <textarea ng-model="selectedSession.soap_objective" placeholder="Measurable data: accuracy percentages, number of trials, specific observations of speech/language performance..."></textarea>
+                            </div>
+                            
+                            <div class="soap-section">
+                                <label><strong>A</strong> - Assessment</label>
+                                <p class="soap-description">Clinical interpretation and progress toward treatment goals</p>
+                                <textarea ng-model="selectedSession.soap_assessment" placeholder="Your clinical interpretation: Is the client making progress? What factors are affecting performance? Goal status..."></textarea>
+                            </div>
+                            
+                            <div class="soap-section">
+                                <label><strong>P</strong> - Plan</label>
+                                <p class="soap-description">Treatment plan and activities for upcoming sessions</p>
+                                <textarea ng-model="selectedSession.soap_plan" placeholder="Plan for next session: activities, targets, modifications to treatment approach, home practice recommendations..."></textarea>
+                                
+                                <!-- Assigned Activities Section -->
+                                <div class="session-activities-section">
+                                    <h4><i class="fas fa-puzzle-piece"></i> Assigned Activities</h4>
+                                    
+                                    <!-- Activity Selector -->
+                                    <div class="activity-selector">
+                                        <select ng-model="selectedActivityId">
+                                            <option value="">Select an activity to assign...</option>
+                                            <option ng-repeat="activity in availableActivities" value="{{ activity.id }}">
+                                                {{ activity.name }} ({{ activity.category }})
+                                            </option>
+                                        </select>
+                                        <button type="button" class="btn-primary btn-sm" ng-click="addActivityToSession()" ng-disabled="!selectedActivityId">
+                                            <i class="fas fa-plus"></i> Add
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Assigned Activities List -->
+                                    <div class="assigned-activities-list" ng-if="sessionActivities.length > 0">
+                                        <div class="assigned-activity-item" ng-repeat="sa in sessionActivities">
+                                            <div class="assigned-activity-info">
+                                                <span class="activity-category-badge small" ng-class="sa.activity.category">{{ sa.activity.category }}</span>
+                                                <span class="activity-name">{{ sa.activity.name }}</span>
+                                            </div>
+                                            <button type="button" class="btn-sm btn-danger" ng-click="removeActivityFromSession(sa)" title="Remove">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <p class="no-activities-message" ng-if="sessionActivities.length === 0">
+                                        <i class="fas fa-info-circle"></i> No activities assigned yet. Select activities above to add to this session.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions soap-form-actions">
+                            <button class="btn-secondary" ng-click="closeSessionDetail()">Cancel</button>
+                            <button class="btn-primary btn-save-notes" ng-click="updateSessionNotes()">
+                                <i class="fas fa-save"></i> Save Session Notes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activities View -->
+        <div ng-if="isAuthenticated && currentView === 'activities'" ng-controller="ActivitiesController">
+            <div class="page-header">
+                <h1><i class="fas fa-puzzle-piece"></i> Therapy Activities</h1>
+            </div>
+            
+            <!-- Category Filter -->
+            <div class="category-tabs">
+                <button ng-class="{active: selectedCategory === ''}" ng-click="filterByCategory('')">All</button>
+                <button ng-class="{active: selectedCategory === 'articulation'}" ng-click="filterByCategory('articulation')">
+                    <i class="fas fa-lips"></i> Articulation
+                </button>
+                <button ng-class="{active: selectedCategory === 'language'}" ng-click="filterByCategory('language')">
+                    <i class="fas fa-comment"></i> Language
+                </button>
+                <button ng-class="{active: selectedCategory === 'fluency'}" ng-click="filterByCategory('fluency')">
+                    <i class="fas fa-wave-square"></i> Fluency
+                </button>
+                <button ng-class="{active: selectedCategory === 'voice'}" ng-click="filterByCategory('voice')">
+                    <i class="fas fa-microphone"></i> Voice
+                </button>
+                <button ng-class="{active: selectedCategory === 'phonology'}" ng-click="filterByCategory('phonology')">
+                    <i class="fas fa-spell-check"></i> Phonology
+                </button>
+            </div>
+            
+            <!-- Activities Grid -->
+            <div class="activities-grid">
+                <div class="activity-card" ng-repeat="activity in activities" ng-click="selectActivity(activity)">
+                    <div class="activity-category-badge" ng-class="activity.category.toLowerCase()">
+                        {{ activity.category }}
+                    </div>
+                    <h3>{{ activity.name }}</h3>
+                    <p>{{ activity.description | limitTo:100 }}...</p>
+                    <div class="activity-meta">
+                        <span class="difficulty">
+                            <i class="fas fa-star" ng-repeat="i in [1,2,3,4,5]" ng-class="{filled: i <= activity.difficulty_level}"></i>
+                        </span>
+                        <span ng-if="activity.target_sounds"><i class="fas fa-bullseye"></i> {{ activity.target_sounds }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Activity Session Modal -->
+            <div class="modal-overlay" ng-show="showActivitySession">
+                <div class="modal-content modal-large">
+                    <div class="modal-header">
+                        <h2>{{ selectedActivity.name }}</h2>
+                        <button class="modal-close" ng-click="closeActivitySession()">&times;</button>
+                    </div>
+                    <div class="activity-session-content">
+                        <!-- Select Client -->
+                        <div class="activity-client-select" ng-if="!activityClient">
+                            <h3>Select Client</h3>
+                            <div class="client-select-grid">
+                                <div class="client-option" ng-repeat="client in clients" ng-click="selectActivityClient(client)">
+                                    <div class="client-avatar small">{{ client.first_name.charAt(0) }}{{ client.last_name.charAt(0) }}</div>
+                                    <span>{{ client.first_name }} {{ client.last_name }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Activity Interface -->
+                        <div class="activity-interface" ng-if="activityClient">
+                            <div class="activity-header-bar">
+                                <span class="client-badge">
+                                    <i class="fas fa-user"></i> {{ activityClient.first_name }} {{ activityClient.last_name }}
+                                </span>
+                                <span class="trial-counter" ng-class="{'trial-complete': currentTrial >= totalTrials}">
+                                    Trial {{ currentTrial }} of {{ totalTrials }}
+                                </span>
+                            </div>
+                            
+                            <!-- Word Display -->
+                            <div class="word-display" ng-if="currentWord && currentTrial < totalTrials">
+                                <div class="target-word">{{ currentWord.word }}</div>
+                                <div class="phonetic" ng-if="currentWord.phonetic">{{ currentWord.phonetic }}</div>
+                                <div class="word-position" ng-if="currentWord.position">Position: {{ currentWord.position }}</div>
+                            </div>
+                            
+                            <!-- Trials Complete Message -->
+                            <div class="trials-complete-message" ng-if="currentTrial >= totalTrials">
+                                <i class="fas fa-check-circle"></i>
+                                <h3>All Trials Complete!</h3>
+                                <p>Click "Finish & Save" to record results or "Reset" to start over.</p>
+                            </div>
+                            
+                            <!-- Response Buttons - Hidden when trials complete -->
+                            <div class="response-buttons" ng-if="currentTrial < totalTrials && currentWord">
+                                <button class="response-btn correct" ng-click="recordResponse(true)">
+                                    <i class="fas fa-check"></i> Correct
+                                </button>
+                                <button class="response-btn incorrect" ng-click="recordResponse(false)">
+                                    <i class="fas fa-times"></i> Incorrect
+                                </button>
+                            </div>
+                            
+                            <!-- Progress Tracker -->
+                            <div class="activity-progress">
+                                <div class="progress-bar large">
+                                    <div class="progress-fill" ng-class="{'complete': currentTrial >= totalTrials}" ng-style="{'width': (currentTrial ? ((trialsCorrect / currentTrial) * 100) : 0) + '%' }"></div>
+                                </div>
+                                <div class="progress-stats">
+                                    <span class="correct-count"><i class="fas fa-check text-success"></i> {{ trialsCorrect }}</span>
+                                    <span class="accuracy">{{ currentTrial ? (((trialsCorrect / currentTrial) * 100) | number:0) : 0 }}% Accuracy</span>
+                                    <span class="incorrect-count"><i class="fas fa-times text-danger"></i> {{ currentTrial - trialsCorrect }}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="activity-actions">
+                                <button class="btn-secondary" ng-click="resetActivity()"><i class="fas fa-redo"></i> Reset</button>
+                                <button class="btn-primary" ng-click="finishActivity()" ng-class="{'btn-pulse': currentTrial >= totalTrials}"><i class="fas fa-flag-checkered"></i> Finish & Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resources View -->
+        <div ng-if="isAuthenticated && currentView === 'resources'" ng-controller="ResourcesController">
+            <div class="page-header">
+                <h1><i class="fas fa-folder-open"></i> Resource Library</h1>
+                <button class="btn-primary" ng-click="openUploadModal()">
+                    <i class="fas fa-upload"></i> Upload Resource
+                </button>
+            </div>
+            
+            <!-- Resource Type Tabs -->
+            <div class="resource-tabs">
+                <button ng-class="{active: resourceType === ''}" ng-click="filterByType('')">All</button>
+                <button ng-class="{active: resourceType === 'worksheet'}" ng-click="filterByType('worksheet')">
+                    <i class="fas fa-file-alt"></i> Worksheets
+                </button>
+                <button ng-class="{active: resourceType === 'flashcard'}" ng-click="filterByType('flashcard')">
+                    <i class="fas fa-clone"></i> Flashcards
+                </button>
+                <button ng-class="{active: resourceType === 'guide'}" ng-click="filterByType('guide')">
+                    <i class="fas fa-book"></i> Guides
+                </button>
+                <button ng-class="{active: resourceType === 'audio'}" ng-click="filterByType('audio')">
+                    <i class="fas fa-volume-up"></i> Audio
+                </button>
+            </div>
+            
+            <!-- Resources Grid -->
+            <div class="resources-grid">
+                <div class="resource-card" ng-repeat="resource in resources">
+                    <div class="resource-icon" ng-class="resource.resource_type">
+                        <i class="fas" ng-class="{
+                            'fa-file-pdf': resource.resource_type === 'worksheet',
+                            'fa-clone': resource.resource_type === 'flashcard',
+                            'fa-book': resource.resource_type === 'guide',
+                            'fa-volume-up': resource.resource_type === 'audio',
+                            'fa-file': !resource.resource_type
+                        }"></i>
+                    </div>
+                    <div class="resource-info">
+                        <h3>{{ resource.title }}</h3>
+                        <p>{{ resource.description | limitTo:60 }}...</p>
+                        <div class="resource-meta">
+                            <span ng-if="resource.isLocal" class="local-badge"><i class="fas fa-user"></i> Local</span>
+                            <span ng-if="resource.category" class="category-tag">{{ resource.category }}</span>
+                            <span class="download-count"><i class="fas fa-download"></i> {{ resource.download_count }}</span>
+                        </div>
+                    </div>
+                    <div class="resource-actions">
+                        <button class="btn-download" ng-click="downloadResource(resource)" title="Download">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button class="btn-delete-resource" ng-if="resource.isLocal" ng-click="deleteResource(resource); $event.stopPropagation()" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Empty State -->
+            <div class="empty-state" ng-if="resources.length === 0">
+                <i class="fas fa-folder-open"></i>
+                <p>No resources found</p>
+                <button class="btn-primary" ng-click="openUploadModal()">Upload Your First Resource</button>
+            </div>
+            
+            <!-- Upload Resource Modal -->
+            <div class="modal-overlay" ng-show="showUploadModal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-upload"></i> Upload Resource</h2>
+                        <button class="modal-close" ng-click="closeUploadModal()">&times;</button>
+                    </div>
+                    <form ng-submit="saveResource()">
+                        <div class="form-group">
+                            <label>Title *</label>
+                            <input type="text" ng-model="uploadForm.title" placeholder="Resource title" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea ng-model="uploadForm.description" rows="3" placeholder="Describe this resource..."></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Resource Type *</label>
+                                <select ng-model="uploadForm.resource_type" required>
+                                    <option value="worksheet">Worksheet</option>
+                                    <option value="flashcard">Flashcard</option>
+                                    <option value="guide">Guide</option>
+                                    <option value="audio">Audio</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Category</label>
+                                <select ng-model="uploadForm.category">
+                                    <option value="">Select category</option>
+                                    <option value="articulation">Articulation</option>
+                                    <option value="language">Language</option>
+                                    <option value="fluency">Fluency</option>
+                                    <option value="voice">Voice</option>
+                                    <option value="phonology">Phonology</option>
+                                    <option value="pragmatics">Pragmatics</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>File (Optional)</label>
+                            <input type="file" id="resourceFile" class="file-input">
+                            <p class="form-help" ng-if="uploadForm.fileName">Selected: {{ uploadForm.fileName }}</p>
+                            <p class="form-help" ng-if="!uploadForm.fileName">Supported formats: PDF, DOC, MP3, PNG, JPG</p>
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" ng-model="uploadForm.is_public">
+                                <span>Make this resource public (visible to all therapists)</span>
+                            </label>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" ng-click="closeUploadModal()">Cancel</button>
+                            <button type="submit" class="btn-primary"><i class="fas fa-upload"></i> Upload Resource</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+    </main>
+    
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" ng-show="globalLoading">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+    
+    <!-- Toast Notifications -->
+    <div class="toast-container">
+        <div class="toast" ng-repeat="toast in toasts" ng-class="toast.type">
+            <i class="fas" ng-class="{
+                'fa-check-circle': toast.type === 'success',
+                'fa-exclamation-circle': toast.type === 'error',
+                'fa-info-circle': toast.type === 'info'
+            }"></i>
+            <span>{{ toast.message }}</span>
+        </div>
+    </div>
+
+    <!-- AngularJS -->
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+    
+    <!-- Application Scripts -->
+    <script src="js/app.js"></script>
+    <script src="js/controllers/MainController.js"></script>
+    <script src="js/controllers/DashboardController.js"></script>
+    <script src="js/controllers/ClientsController.js"></script>
+    <script src="js/controllers/SessionsController.js"></script>
+    <script src="js/controllers/ActivitiesController.js"></script>
+    <script src="js/controllers/ResourcesController.js"></script>
+</body>
+</html>
