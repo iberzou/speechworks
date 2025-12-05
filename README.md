@@ -290,7 +290,7 @@ Full technical documentation, including:
 - API specifications
 - Deployment guides
 
-See [docs/Technical_Documentation.docx](docs/Technical_Documentation.docx)
+See [docs/SpeechWorksTechnicalDocumentation.pdf]
 
  📹 Video Demo link of SpeechWorks Web App
  - https://youtu.be/tzFzpDWVggQ
